@@ -20,6 +20,14 @@ const artworks = {
       id: 'visual4',
       filename: 'visual4.mp4'
     },
+    {
+      id: 'visual5',
+      filename: 'visual5.mp4'
+    },
+    {
+      id: 'visual6',
+      filename: 'visual6.mp4'
+    }
     // Add more visual works as needed
   ],
   audio: {
@@ -108,6 +116,19 @@ function createVisualGallery() {
   window.addEventListener('scroll', updateVideoVisibility);
 }
 
+// Function to forcefully play audio (to overcome autoplay restrictions)
+function forceAudioPlay() {
+  if (wavesurfer && isAudioLoaded && wavesurfer.isPlaying() === false) {
+    try {
+      // Use a user gesture to enable playback
+      wavesurfer.play();
+      console.log('Forced audio play successful');
+    } catch (e) {
+      console.log('Forced audio play failed:', e);
+    }
+  }
+}
+
 // Function to set up the audio player
 function setupAudioPlayer() {
   const playPauseBtn = document.getElementById('playPauseBtn');
@@ -116,7 +137,7 @@ function setupAudioPlayer() {
   const currentTimeDisplay = document.getElementById('currentTime');
   const durationDisplay = document.getElementById('duration');
 
-  // Initialize wavesurfer
+  // Initialize wavesurfer with minimal initial options
   wavesurfer = WaveSurfer.create({
     container: '#waveform',
     waveColor: 'rgba(255, 255, 255, 0.3)',
@@ -126,8 +147,7 @@ function setupAudioPlayer() {
     barGap: 3,
     height: 128,
     barRadius: 3,
-    normalize: true,
-    autoplay: true, // Try to autoplay when loaded
+    normalize: true
   });
   
   // Load the audio
@@ -139,18 +159,8 @@ function setupAudioPlayer() {
     const duration = wavesurfer.getDuration();
     durationDisplay.textContent = formatTime(duration);
     
-    // Force autoplay with a slight delay to ensure it works
-    setTimeout(() => {
-      wavesurfer.play().catch(e => {
-        console.log('Autoplay prevented, trying again:', e);
-        // If autoplay is prevented, try again with user interaction simulation
-        document.addEventListener('click', () => {
-          if (wavesurfer.isPlaying() === false) {
-            wavesurfer.play();
-          }
-        }, { once: true });
-      });
-    }, 100);
+    // Use multiple strategies to start audio playback
+    playAudioWithFallbacks();
   });
   
   // Update play/pause button and progress bar
@@ -180,8 +190,48 @@ function setupAudioPlayer() {
   });
 }
 
+// Multiple strategies to try to autoplay audio
+function playAudioWithFallbacks() {
+  // Strategy 1: Direct play attempt
+  wavesurfer.play().catch(e => {
+    console.log('Direct play failed, trying alternatives:', e);
+    
+    // Strategy 2: Delayed play
+    setTimeout(() => {
+      wavesurfer.play().catch(e => console.log('Delayed play failed:', e));
+    }, 1000);
+    
+    // Strategy 3: User interaction simulation
+    document.addEventListener('click', forceAudioPlay, { once: true });
+    document.addEventListener('scroll', forceAudioPlay, { once: true });
+    
+    // Strategy 4: Create a "silent" audio context to unlock audio
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createBufferSource();
+      source.buffer = audioContext.createBuffer(1, 1, 22050);
+      source.connect(audioContext.destination);
+      source.start(0);
+      
+      // After unlocking, try playing again
+      setTimeout(() => {
+        wavesurfer.play().catch(e => console.log('Post-unlock play failed:', e));
+      }, 500);
+    } catch (e) {
+      console.log('Audio context unlock failed:', e);
+    }
+  });
+}
+
 // Initialize the gallery and audio player when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   createVisualGallery();
   setupAudioPlayer();
+  
+  // Add an additional user interaction listener to ensure audio plays
+  window.addEventListener('click', () => {
+    if (isAudioLoaded && wavesurfer && !wavesurfer.isPlaying()) {
+      wavesurfer.play();
+    }
+  }, { once: true });
 });
