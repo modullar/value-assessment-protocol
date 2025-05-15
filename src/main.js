@@ -24,7 +24,7 @@ const artworks = {
   ],
   audio: {
     id: 'main-audio',
-    filename: 'main-audio.mp3'
+    filename: 'main-audio.wav'
   }
 };
 
@@ -37,6 +37,37 @@ function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
   return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`;
+}
+
+// Function to check if an element is in viewport
+function isElementInViewport(el) {
+  const rect = el.getBoundingClientRect();
+  const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+  
+  // Calculate what percentage of the element is in the viewport
+  const visibleHeight = Math.min(rect.bottom, windowHeight) - Math.max(rect.top, 0);
+  const elementHeight = rect.bottom - rect.top;
+  
+  // Consider it "in viewport" if more than 70% is visible
+  return (visibleHeight / elementHeight) > 0.7;
+}
+
+// Function to update video visibility based on scroll position
+function updateVideoVisibility() {
+  const galleryItems = document.querySelectorAll('.gallery-item');
+  
+  galleryItems.forEach(item => {
+    const video = item.querySelector('video');
+    
+    if (isElementInViewport(item)) {
+      item.classList.add('active');
+      if (video.paused) {
+        video.play().catch(e => console.log('Video play failed:', e));
+      }
+    } else {
+      item.classList.remove('active');
+    }
+  });
 }
 
 // Function to create visual gallery items
@@ -69,6 +100,12 @@ function createVisualGallery() {
       video.play().catch(e => console.log('Autoplay prevented:', e));
     }, index * 300);
   });
+  
+  // Initial check for which video is in view
+  updateVideoVisibility();
+  
+  // Add scroll event listener
+  window.addEventListener('scroll', updateVideoVisibility);
 }
 
 // Function to set up the audio player
@@ -90,6 +127,7 @@ function setupAudioPlayer() {
     height: 128,
     barRadius: 3,
     normalize: true,
+    autoplay: true, // Try to autoplay when loaded
   });
   
   // Load the audio
@@ -101,8 +139,18 @@ function setupAudioPlayer() {
     const duration = wavesurfer.getDuration();
     durationDisplay.textContent = formatTime(duration);
     
-    // Attempt to autoplay
-    wavesurfer.play().catch(e => console.log('Autoplay prevented:', e));
+    // Force autoplay with a slight delay to ensure it works
+    setTimeout(() => {
+      wavesurfer.play().catch(e => {
+        console.log('Autoplay prevented, trying again:', e);
+        // If autoplay is prevented, try again with user interaction simulation
+        document.addEventListener('click', () => {
+          if (wavesurfer.isPlaying() === false) {
+            wavesurfer.play();
+          }
+        }, { once: true });
+      });
+    }, 100);
   });
   
   // Update play/pause button and progress bar
