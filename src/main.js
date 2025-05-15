@@ -118,32 +118,6 @@ function createVisualGallery() {
   window.addEventListener('scroll', updateVideoVisibility);
 }
 
-// Function to forcefully play audio (to overcome autoplay restrictions)
-function forceAudioPlay() {
-  if (wavesurfer && isAudioLoaded && !wavesurfer.isPlaying()) {
-    try {
-      wavesurfer.play();
-      console.log('Force audio play successful');
-    } catch (e) {
-      console.log('Force audio play failed:', e);
-      if (autoplayAttempts < MAX_AUTOPLAY_ATTEMPTS) {
-        autoplayAttempts++;
-        setTimeout(forceAudioPlay, 500); // Try again after a short delay
-      }
-    }
-  }
-}
-
-// Create a fake user interaction to bypass autoplay restrictions
-function simulateUserGesture() {
-  const clickEvent = new MouseEvent('click', {
-    view: window,
-    bubbles: true,
-    cancelable: true
-  });
-  document.dispatchEvent(clickEvent);
-}
-
 // Function to set up the audio player
 function setupAudioPlayer() {
   const playPauseBtn = document.getElementById('playPauseBtn');
@@ -151,16 +125,6 @@ function setupAudioPlayer() {
   const progressBar = document.getElementById('progressBar');
   const currentTimeDisplay = document.getElementById('currentTime');
   const durationDisplay = document.getElementById('duration');
-
-  // Create an unwrapped audio element first to try to unlock the audio API
-  const bootstrapAudio = document.createElement('audio');
-  bootstrapAudio.src = `public/audio/${artworks.audio.filename}`;
-  bootstrapAudio.load();
-  
-  // Try to unlock audio with user gesture simulation
-  if (typeof window.AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
-    simulateUserGesture();
-  }
 
   // Initialize wavesurfer with minimal initial options
   wavesurfer = WaveSurfer.create({
@@ -208,12 +172,44 @@ function setupAudioPlayer() {
     progressBar.style.width = `${progress}%`;
   });
   
-  // Play/pause button functionality (also starts autoplay on user click)
-  playPauseBtn.addEventListener('click', () => {
+  // Fix for play/pause button
+  playPauseBtn.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
     if (isAudioLoaded) {
-      wavesurfer.playPause();
+      if (wavesurfer.isPlaying()) {
+        wavesurfer.pause();
+      } else {
+        wavesurfer.play();
+      }
     }
   });
+  
+  // Stop auto-retry when user pauses audio
+  wavesurfer.on('pause', () => {
+    // Clear any pending autoplay timers
+    clearAutoplayTimers();
+  });
+}
+
+// Store all timeout/interval IDs so we can clear them when needed
+const autoplayTimers = [];
+
+// Clear all autoplay timers
+function clearAutoplayTimers() {
+  autoplayTimers.forEach(id => {
+    if (typeof id === 'number') {
+      clearTimeout(id);
+      clearInterval(id);
+    }
+  });
+  
+  // Clear the array
+  autoplayTimers.length = 0;
+  
+  // Stop trying to force play
+  autoplayAttempts = MAX_AUTOPLAY_ATTEMPTS;
 }
 
 // Try all possible strategies to start audio playback
@@ -228,26 +224,45 @@ function playWithAllStrategies() {
     const attemptPlay = (attempt) => {
       if (attempt > MAX_AUTOPLAY_ATTEMPTS) return;
       
-      setTimeout(() => {
+      const timerId = setTimeout(() => {
         console.log(`Attempt ${attempt} to play audio`);
-        wavesurfer.play().catch(() => attemptPlay(attempt + 1));
+        
+        // Only continue if still should be playing
+        if (wavesurfer && !wavesurfer.isPlaying()) {
+          wavesurfer.play().catch(() => attemptPlay(attempt + 1));
+        }
       }, attempt * 300);
+      
+      autoplayTimers.push(timerId);
     };
     
     attemptPlay(1);
     
     // Strategy 3: Use various user interaction events
-    document.addEventListener('click', forceAudioPlay);
-    document.addEventListener('touchstart', forceAudioPlay);
-    document.addEventListener('keydown', forceAudioPlay);
-    document.addEventListener('scroll', forceAudioPlay);
+    const userEvents = ['click', 'touchstart', 'keydown', 'scroll'];
+    userEvents.forEach(eventType => {
+      const handler = function() {
+        if (wavesurfer && isAudioLoaded && !wavesurfer.isPlaying()) {
+          wavesurfer.play().catch(e => console.log(`Play on ${eventType} failed:`, e));
+        }
+      };
+      document.addEventListener(eventType, handler, { once: true });
+    });
     
-    // Strategy 4: Simulate a user gesture
-    simulateUserGesture();
-    setTimeout(forceAudioPlay, 100);
+    // Strategy 4: Auto-retry periodically (but store the interval ID to clear it if paused)
+    const intervalId = setInterval(() => {
+      if (autoplayAttempts >= MAX_AUTOPLAY_ATTEMPTS) {
+        clearInterval(intervalId);
+        return;
+      }
+      
+      if (wavesurfer && isAudioLoaded && !wavesurfer.isPlaying()) {
+        autoplayAttempts++;
+        wavesurfer.play().catch(e => console.log('Interval play failed:', e));
+      }
+    }, 2000);
     
-    // Strategy 5: Auto-retry periodically
-    setInterval(forceAudioPlay, 2000);
+    autoplayTimers.push(intervalId);
   });
 }
 
@@ -255,9 +270,4 @@ function playWithAllStrategies() {
 document.addEventListener('DOMContentLoaded', () => {
   createVisualGallery();
   setupAudioPlayer();
-  
-  // Add an additional overall click listener for the whole page
-  document.addEventListener('click', () => {
-    forceAudioPlay();
-  });
 });
