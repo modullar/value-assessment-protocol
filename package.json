@@ -1,0 +1,16 @@
+{
+  "name": "value-assessment-protocol",
+  "version": "1.0.0",
+  "description": "Portfolio showcasing generative audio and visual artworks",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve",
+    "dev": "npx live-server"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "serve": "^14.2.1"
+  }
+}

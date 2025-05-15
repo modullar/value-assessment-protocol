@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Value Assessment Protocol</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <header>
+    <h1>Value Assessment Protocol</h1>
+    <nav>
+      <ul>
+        <li><a href="#audio">Audio</a></li>
+        <li><a href="#visual">Visual</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section id="audio">
+      <div class="audio-player-container">
+        <div class="waveform" id="waveform"></div>
+        <div class="audio-controls">
+          <button id="playPauseBtn" class="play-pause-btn">
+            <i class="fas fa-play"></i>
+          </button>
+          <div class="audio-info">
+            <h3>Value Assessment Protocol - Audio Experience</h3>
+            <div class="progress-container">
+              <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="time-display">
+              <span id="currentTime">0:00</span> / <span id="duration">0:00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="audio-description">
+        <h3>About the Audio Experience</h3>
+        <p>This generative audio composition explores the concept of value assessment through algorithmic sound design. The piece creates an immersive soundscape that reflects the protocols and metrics used to evaluate worth in contemporary systems.</p>
+      </div>
+    </section>
+
+    <section id="about">
+      <h2>About the Exhibition</h2>
+      <p>Value Assessment Protocol explores how value assessment is manifested through generative audio and video. This exhibition invites viewers to consider how algorithmic processes interpret, evaluate, and assign worth in our digitally mediated world.</p>
+    </section>
+
+    <section id="visual">
+      <h2>Visual Gallery</h2>
+      <div class="gallery-container">
+        <div class="gallery-view" id="visual-gallery">
+          <!-- Visual works will be loaded dynamically -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; Value Assessment Protocol</p>
+  </footer>
+
+  <script src="https://unpkg.com/wavesurfer.js@6"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>
