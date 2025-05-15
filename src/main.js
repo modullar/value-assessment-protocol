@@ -36,9 +36,11 @@ const artworks = {
   }
 };
 
-// Initialize WaveSurfer for audio visualization
+// Global variables
 let wavesurfer;
 let isAudioLoaded = false;
+let autoplayAttempts = 0;
+const MAX_AUTOPLAY_ATTEMPTS = 10;
 
 // Function to format time in minutes and seconds
 function formatTime(seconds) {
@@ -118,15 +120,28 @@ function createVisualGallery() {
 
 // Function to forcefully play audio (to overcome autoplay restrictions)
 function forceAudioPlay() {
-  if (wavesurfer && isAudioLoaded && wavesurfer.isPlaying() === false) {
+  if (wavesurfer && isAudioLoaded && !wavesurfer.isPlaying()) {
     try {
-      // Use a user gesture to enable playback
       wavesurfer.play();
-      console.log('Forced audio play successful');
+      console.log('Force audio play successful');
     } catch (e) {
-      console.log('Forced audio play failed:', e);
+      console.log('Force audio play failed:', e);
+      if (autoplayAttempts < MAX_AUTOPLAY_ATTEMPTS) {
+        autoplayAttempts++;
+        setTimeout(forceAudioPlay, 500); // Try again after a short delay
+      }
     }
   }
+}
+
+// Create a fake user interaction to bypass autoplay restrictions
+function simulateUserGesture() {
+  const clickEvent = new MouseEvent('click', {
+    view: window,
+    bubbles: true,
+    cancelable: true
+  });
+  document.dispatchEvent(clickEvent);
 }
 
 // Function to set up the audio player
@@ -136,6 +151,16 @@ function setupAudioPlayer() {
   const progressBar = document.getElementById('progressBar');
   const currentTimeDisplay = document.getElementById('currentTime');
   const durationDisplay = document.getElementById('duration');
+
+  // Create an unwrapped audio element first to try to unlock the audio API
+  const bootstrapAudio = document.createElement('audio');
+  bootstrapAudio.src = `public/audio/${artworks.audio.filename}`;
+  bootstrapAudio.load();
+  
+  // Try to unlock audio with user gesture simulation
+  if (typeof window.AudioContext !== 'undefined' || typeof window.webkitAudioContext !== 'undefined') {
+    simulateUserGesture();
+  }
 
   // Initialize wavesurfer with minimal initial options
   wavesurfer = WaveSurfer.create({
@@ -147,7 +172,8 @@ function setupAudioPlayer() {
     barGap: 3,
     height: 128,
     barRadius: 3,
-    normalize: true
+    normalize: true,
+    autoplay: true // Try to autoplay
   });
   
   // Load the audio
@@ -159,8 +185,8 @@ function setupAudioPlayer() {
     const duration = wavesurfer.getDuration();
     durationDisplay.textContent = formatTime(duration);
     
-    // Use multiple strategies to start audio playback
-    playAudioWithFallbacks();
+    // Aggressive autoplay
+    playWithAllStrategies();
   });
   
   // Update play/pause button and progress bar
@@ -182,7 +208,7 @@ function setupAudioPlayer() {
     progressBar.style.width = `${progress}%`;
   });
   
-  // Play/pause button functionality
+  // Play/pause button functionality (also starts autoplay on user click)
   playPauseBtn.addEventListener('click', () => {
     if (isAudioLoaded) {
       wavesurfer.playPause();
@@ -190,36 +216,38 @@ function setupAudioPlayer() {
   });
 }
 
-// Multiple strategies to try to autoplay audio
-function playAudioWithFallbacks() {
-  // Strategy 1: Direct play attempt
-  wavesurfer.play().catch(e => {
+// Try all possible strategies to start audio playback
+function playWithAllStrategies() {
+  // Strategy 1: Direct play
+  wavesurfer.play().then(() => {
+    console.log('Direct play worked');
+  }).catch(e => {
     console.log('Direct play failed, trying alternatives:', e);
     
-    // Strategy 2: Delayed play
-    setTimeout(() => {
-      wavesurfer.play().catch(e => console.log('Delayed play failed:', e));
-    }, 1000);
-    
-    // Strategy 3: User interaction simulation
-    document.addEventListener('click', forceAudioPlay, { once: true });
-    document.addEventListener('scroll', forceAudioPlay, { once: true });
-    
-    // Strategy 4: Create a "silent" audio context to unlock audio
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const source = audioContext.createBufferSource();
-      source.buffer = audioContext.createBuffer(1, 1, 22050);
-      source.connect(audioContext.destination);
-      source.start(0);
+    // Strategy 2: Try multiple times with delay
+    const attemptPlay = (attempt) => {
+      if (attempt > MAX_AUTOPLAY_ATTEMPTS) return;
       
-      // After unlocking, try playing again
       setTimeout(() => {
-        wavesurfer.play().catch(e => console.log('Post-unlock play failed:', e));
-      }, 500);
-    } catch (e) {
-      console.log('Audio context unlock failed:', e);
-    }
+        console.log(`Attempt ${attempt} to play audio`);
+        wavesurfer.play().catch(() => attemptPlay(attempt + 1));
+      }, attempt * 300);
+    };
+    
+    attemptPlay(1);
+    
+    // Strategy 3: Use various user interaction events
+    document.addEventListener('click', forceAudioPlay);
+    document.addEventListener('touchstart', forceAudioPlay);
+    document.addEventListener('keydown', forceAudioPlay);
+    document.addEventListener('scroll', forceAudioPlay);
+    
+    // Strategy 4: Simulate a user gesture
+    simulateUserGesture();
+    setTimeout(forceAudioPlay, 100);
+    
+    // Strategy 5: Auto-retry periodically
+    setInterval(forceAudioPlay, 2000);
   });
 }
 
@@ -228,10 +256,8 @@ document.addEventListener('DOMContentLoaded', () => {
   createVisualGallery();
   setupAudioPlayer();
   
-  // Add an additional user interaction listener to ensure audio plays
-  window.addEventListener('click', () => {
-    if (isAudioLoaded && wavesurfer && !wavesurfer.isPlaying()) {
-      wavesurfer.play();
-    }
-  }, { once: true });
+  // Add an additional overall click listener for the whole page
+  document.addEventListener('click', () => {
+    forceAudioPlay();
+  });
 });

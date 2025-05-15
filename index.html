@@ -6,6 +6,47 @@
   <title>Value Assessment Protocol</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Inline script to unlock audio before page loads -->
+  <script>
+    // Create and play a silent audio track to unlock audio on iOS
+    window.AudioContext = window.AudioContext || window.webkitAudioContext;
+    
+    function unlockAudio() {
+      if (!window.audioContextUnlocked) {
+        try {
+          const audioCtx = new AudioContext();
+          const audioElement = document.createElement('audio');
+          audioElement.setAttribute('src', 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+          audioElement.setAttribute('autoplay', 'true');
+          audioElement.setAttribute('muted', 'true');
+          audioElement.style.display = 'none';
+          document.body.appendChild(audioElement);
+          audioElement.play();
+          
+          // Also create an audio context and play a silent sound
+          const source = audioCtx.createBufferSource();
+          source.buffer = audioCtx.createBuffer(1, 1, 22050);
+          source.connect(audioCtx.destination);
+          source.start(0);
+          
+          window.audioContextUnlocked = true;
+          console.log('Audio context unlocked successfully');
+        } catch (e) {
+          console.log('Failed to unlock audio context:', e);
+        }
+      }
+    }
+    
+    // Try to unlock audio as early as possible
+    unlockAudio();
+    
+    // Additional unlock attempts
+    document.addEventListener('DOMContentLoaded', unlockAudio);
+    window.addEventListener('load', unlockAudio);
+    window.addEventListener('touchstart', unlockAudio, {once: true});
+    window.addEventListener('mousedown', unlockAudio, {once: true});
+    window.addEventListener('keydown', unlockAudio, {once: true});
+  </script>
 </head>
 <body>
   <header>
@@ -62,8 +103,10 @@
     <p>&copy; Value Assessment Protocol</p>
   </footer>
 
-  <!-- Add audio element with autoplay attribute to help with browsers' autoplay policies -->
-  <audio id="silent-audio" autoplay muted></audio>
+  <!-- Audio elements to help with autoplay -->
+  <audio id="silent-audio" autoplay muted loop preload="auto">
+    <source src="data:audio/mp3;base64,SUQzAwAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQwAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV6urq6urq6urq6urq6urq6urq6urq6urq6v////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAYHAAAAAAAAASAgwgvr/wAAAAAAAAAAAAAAAAD/+xDEAAPAAAGkAAAAIAAANIAAAARMQU1FMy45OS41VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV" type="audio/mp3">
+  </audio>
 
   <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.esm.js" type="module"></script>
   <script src="src/main.js" type="module"></script>
